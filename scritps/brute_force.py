@@ -20,14 +20,18 @@ def setup_logging(log_file):
     )
 
 # Definir o endereço Bitcoin fornecido
-BITCOIN_ADDRESS = "1GnNTmTVLZiqQfLbAdp9DVdicEnB5GoERE"
+BITCOIN_ADDRESS = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb"
 VERSION = "1.0.0.0"
 THREADS = 1
+LOG_FILE = "brute_force.log"
 CHECKPOINT_FILE = "checkpoint.txt"
 
 # Intervalo mínimo e máximo em hexadecimal (20 a 3f)
-MIN_PK_INTERVAL = 0x20000
-MAX_PK_INTERVAL = 0x3ffff
+MIN_PK_INTERVAL = 0x02
+MAX_PK_INTERVAL = 0x03
+
+# Calcular o número total de chaves privadas no intervalo
+total_private_keys = MAX_PK_INTERVAL - MIN_PK_INTERVAL + 1
 
 # Função para gerar a chave pública em formato compactado
 def get_public_key_bytes(private_key_bytes):
@@ -82,10 +86,12 @@ def check_private_key(private_key_value):
 
 # Função para encontrar a chave privada correspondente ao endereço Bitcoin fornecido
 def find_private_key(num_cores):
-    setup_logging(log_file="brute_force.log")
+    setup_logging(log_file=LOG_FILE)
+    
+    # Definir start_value inicialmente como MIN_PK_INTERVAL
+    start_value = MIN_PK_INTERVAL
     
     # Verificar se há um checkpoint anterior
-    start_value = MIN_PK_INTERVAL
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, 'r') as f:
             try:
@@ -97,6 +103,7 @@ def find_private_key(num_cores):
     start_time = time.time()
     logging.info(f"Brute Force Bitcoin Private Key Finder by Francis Santiago - v: {VERSION}")
     logging.info(f"Initiating brute force search to find the private key corresponding to the address {BITCOIN_ADDRESS}...")
+    logging.info(f"Total private keys in range: {total_private_keys}")  # Incluir total de chaves privadas no intervalo
     
     checkpoint_counter = 0
     interrupted = False  # Flag para verificar se o script foi interrompido
@@ -104,13 +111,15 @@ def find_private_key(num_cores):
         private_key_value = start_value
         try:
             while private_key_value <= MAX_PK_INTERVAL:
-                # Cria um intervalo de valores de chaves privadas para verificar em paralelo
                 keys_to_check = list(range(private_key_value, min(private_key_value + num_cores, MAX_PK_INTERVAL + 1)))
                 private_key_value += num_cores
 
-                # Verifica as chaves privadas em paralelo
                 results = pool.map(check_private_key, keys_to_check)
                 
+                # Atualizar contagem de chaves verificadas
+                keys_checked = private_key_value - MIN_PK_INTERVAL
+                keys_per_second = keys_checked / (time.time() - start_time)
+
                 # Salvar o checkpoint após cada bloco verificado
                 try:
                     with open(CHECKPOINT_FILE, 'w') as f:
@@ -119,29 +128,27 @@ def find_private_key(num_cores):
                 except Exception as e:
                     logging.error(f"Failed to save checkpoint: {str(e)}")
                 
-                # Verifica se alguma chave privada corresponde ao endereço
                 for result in results:
                     if result:
                         elapsed_time = time.time() - start_time
                         logging.info(f"Matching private key found: {result}")
                         logging.info(f"Total elapsed time: {elapsed_time:.2f} seconds")
+                        logging.info(f"Keys per second: {keys_per_second:.2f}")
 
-                        # Calcular a próxima chave privada a verificar
-                        next_start_value = format(private_key_value, 'x').zfill(64)  # Formato hexadecimal completo
+                        next_start_value = format(private_key_value, 'x').zfill(64)
                         logging.info(f"Next search will start from private key: {next_start_value}")
                         pool.terminate()
                         return result
 
-                # Log do progresso a cada 10000 checkpoints salvos
                 if checkpoint_counter == 10000:
                     elapsed_time = time.time() - start_time
                     logging.info(f"Private key attempt until {format(private_key_value, 'x').zfill(64)}, Elapsed time: {elapsed_time:.2f} seconds")
+                    logging.info(f"Keys per second: {keys_per_second:.2f}")
                     checkpoint_counter = 0  # Reinicia o contador
         except KeyboardInterrupt:
             interrupted = True
             logging.warning("CTRL+C detected. Finishing the current operation...")
     
-    # Após interrupção por CTRL+C, garantir que o último checkpoint seja salvo
     if interrupted:
         try:
             with open(CHECKPOINT_FILE, 'w') as f:
