@@ -10,11 +10,11 @@ from multiprocessing import Pool, cpu_count
 from bitcoin_balance import get_balance
 
 # CONFIGURAÇÕES
-BITCOIN_ADDRESS = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb"
+BITCOIN_ADDRESS = "1BDyrQ6WoF8VN3g9SAS1iKZcPzFfnDVieY"
 VERSION = "1.0.0.5"
-THREADS = 1
-MIN_PK_INTERVAL = 0x02
-MAX_PK_INTERVAL = 0x03
+THREADS = 4
+MIN_PK_INTERVAL = 0x8000
+MAX_PK_INTERVAL = 0xffff
 
 LOG_FILE = "brute_force.log"
 CHECKPOINT_FILE = "checkpoint.txt"
