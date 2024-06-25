@@ -7,10 +7,11 @@ import time
 import logging
 import signal
 from multiprocessing import Pool, cpu_count
+from bitcoin_balance import get_balance
 
 # CONFIGURAÇÕES
 BITCOIN_ADDRESS = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb"
-VERSION = "1.0.0.4"
+VERSION = "1.0.0.5"
 THREADS = 1
 MIN_PK_INTERVAL = 0x02
 MAX_PK_INTERVAL = 0x03
@@ -103,6 +104,13 @@ def find_private_key(num_cores):
     logging.info(f"Brute Force Bitcoin Private Key Finder by Francis Santiago - v: {VERSION}")
     logging.info(f"Initiating brute force search to find the private key corresponding to the address {BITCOIN_ADDRESS}...")
     logging.info(f"Total private keys in range: {total_private_keys}")  # Incluir total de chaves privadas no intervalo
+    
+    # Consultar o saldo do endereço Bitcoin encontrado
+    balance = get_balance(BITCOIN_ADDRESS)
+    if balance is not None:
+        logging.info(f"Balance for address {BITCOIN_ADDRESS}: {balance} BTC")
+    else:
+        logging.info(f"Could not fetch balance for address {BITCOIN_ADDRESS}")
     
     checkpoint_counter = 0
     interrupted = False  # Flag para verificar se o script foi interrompido

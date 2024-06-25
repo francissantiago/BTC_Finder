@@ -2,3 +2,5 @@
 /.venv
 brute_force.log
 checkpoint.txt
+/scritps/__pycache__
+.vscode/PythonImportHelper-v2-Completion.json
