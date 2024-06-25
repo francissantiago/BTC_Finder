@@ -3,7 +3,7 @@
 ## Requisitos
 
 - Python 3
-- Bibliotecas Python: `ecdsa`, `base58`
+- Bibliotecas Python: `ecdsa`, `base58`, `logging`
 
 Para instalar os módulos execute:
 ```powershell
