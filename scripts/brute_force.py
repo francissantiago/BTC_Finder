@@ -19,6 +19,9 @@ MAX_PK_INTERVAL = 0xffff
 LOG_FILE = "brute_force.log"
 CHECKPOINT_FILE = "checkpoint.txt"
 
+# Variável global para contar as chaves testadas
+keys_tested_count = 0
+
 # Configuração de logging
 def setup_logging(log_file):
     logging.basicConfig(
@@ -127,6 +130,20 @@ def find_private_key(num_cores):
                 keys_checked = private_key_value - MIN_PK_INTERVAL
                 keys_per_second = keys_checked / (time.time() - start_time)
 
+                # Verificar os resultados para ver se a chave foi encontrada
+                for result in results:
+                    if result:
+                        elapsed_time = time.time() - start_time
+                        logging.info(f"Matching private key found: {result}")
+                        logging.info(f"Total elapsed time: {elapsed_time:.2f} seconds")
+                        logging.info(f"Keys per second: {keys_per_second:.2f}")
+                        logging.info(f"Total keys tested: {private_key_value - MIN_PK_INTERVAL}")
+
+                        next_start_value = format(private_key_value, 'x').zfill(64)
+                        logging.info(f"Next search will start from private key: {next_start_value}")
+                        pool.terminate()
+                        return result
+
                 # Salvar o checkpoint após cada bloco verificado
                 try:
                     with open(CHECKPOINT_FILE, 'w') as f:
@@ -135,22 +152,11 @@ def find_private_key(num_cores):
                 except Exception as e:
                     logging.error(f"Failed to save checkpoint: {str(e)}")
                 
-                for result in results:
-                    if result:
-                        elapsed_time = time.time() - start_time
-                        logging.info(f"Matching private key found: {result}")
-                        logging.info(f"Total elapsed time: {elapsed_time:.2f} seconds")
-                        logging.info(f"Keys per second: {keys_per_second:.2f}")
-
-                        next_start_value = format(private_key_value, 'x').zfill(64)
-                        logging.info(f"Next search will start from private key: {next_start_value}")
-                        pool.terminate()
-                        return result
-
                 if checkpoint_counter == 10000:
                     elapsed_time = time.time() - start_time
                     logging.info(f"Private key attempt until {format(private_key_value, 'x').zfill(64)}, Elapsed time: {elapsed_time:.2f} seconds")
                     logging.info(f"Keys per second: {keys_per_second:.2f}")
+                    logging.info(f"Total keys tested: {private_key_value - MIN_PK_INTERVAL}")
                     checkpoint_counter = 0  # Reinicia o contador
         except KeyboardInterrupt:
             interrupted = True
