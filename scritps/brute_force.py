@@ -8,7 +8,17 @@ import logging
 import signal
 from multiprocessing import Pool, cpu_count
 
-# Configuração de logging com codificação UTF-8
+# CONFIGURAÇÕES
+BITCOIN_ADDRESS = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb"
+VERSION = "1.0.0.0"
+THREADS = 1
+MIN_PK_INTERVAL = 0x02
+MAX_PK_INTERVAL = 0x03
+
+LOG_FILE = "brute_force.log"
+CHECKPOINT_FILE = "checkpoint.txt"
+
+# Configuração de logging
 def setup_logging(log_file):
     logging.basicConfig(
         level=logging.INFO,
@@ -18,17 +28,6 @@ def setup_logging(log_file):
             logging.StreamHandler(sys.stdout)
         ]
     )
-
-# Definir o endereço Bitcoin fornecido
-BITCOIN_ADDRESS = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb"
-VERSION = "1.0.0.0"
-THREADS = 1
-LOG_FILE = "brute_force.log"
-CHECKPOINT_FILE = "checkpoint.txt"
-
-# Intervalo mínimo e máximo em hexadecimal (20 a 3f)
-MIN_PK_INTERVAL = 0x02
-MAX_PK_INTERVAL = 0x03
 
 # Calcular o número total de chaves privadas no intervalo
 total_private_keys = MAX_PK_INTERVAL - MIN_PK_INTERVAL + 1
