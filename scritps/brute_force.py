@@ -1,13 +1,28 @@
+import os
+import sys
 import ecdsa
 import hashlib
 import base58
 import time
+import logging
 from multiprocessing import Pool, cpu_count
 
+# Configuração de logging com codificação UTF-8
+def setup_logging(log_file):
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+
 # Definir o endereço Bitcoin fornecido
-BITCOIN_ADDRESS = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"
+BITCOIN_ADDRESS = "1HduPEXZRdG26SUT5Yk83mLkPyjnZuJ7Bm"
 VERSION = "1.0.0.0"
 THREADS = 1
+CHECKPOINT_FILE = "checkpoint.txt"
 
 # Função para gerar a chave pública em formato compactado
 def get_public_key_bytes(private_key_bytes):
@@ -51,23 +66,36 @@ def check_private_key(private_key_value):
         generated_address = generate_bitcoin_address(private_key_bytes)
 
         # Log das informações de checksum e chave privada testada
-        print(f"Chave privada testada: {private_key_bytes.hex()}, Endereço gerado: {generated_address}")
+        logging.info(f"Tested private key: {private_key_bytes.hex()}, Generated address: {generated_address}")
 
         # Verificar se o endereço gerado corresponde ao endereço fornecido
         if generated_address == BITCOIN_ADDRESS:
             return private_key_bytes.hex()  # Retornar a chave privada como string hexadecimal
     except Exception as e:
-        print(f"Erro durante a verificação da chave: {str(e)}")
+        logging.error(f"Error during key verification: {str(e)}")
     return None
 
 # Função para encontrar a chave privada correspondente ao endereço Bitcoin fornecido
 def find_private_key(num_cores):
-    print(f"Brute Force Bitcoin Private Key Finder by Francis Santiago - v: {VERSION}")
-    print(f"Iniciando busca por força bruta para encontrar a chave privada correspondente ao endereço {BITCOIN_ADDRESS}...")
-    start_time = time.time()
+    setup_logging(log_file="brute_force.log")
     
+    # Verificar se há um checkpoint anterior
+    start_value = 1
+    if os.path.exists(CHECKPOINT_FILE):
+        with open(CHECKPOINT_FILE, 'r') as f:
+            try:
+                start_value = int(f.read().strip(), 16)  # Lê o valor hexadecimal do checkpoint
+                logging.info(f"Resuming from checkpoint: {start_value}")
+            except ValueError:
+                logging.warning("Invalid checkpoint file. Starting from the beginning.")
+    
+    start_time = time.time()
+    logging.info(f"Brute Force Bitcoin Private Key Finder by Francis Santiago - v: {VERSION}")
+    logging.info(f"Initiating brute force search to find the private key corresponding to the address {BITCOIN_ADDRESS}...")
+    
+    checkpoint_counter = 0
     with Pool(processes=num_cores) as pool:
-        private_key_value = 1
+        private_key_value = start_value
         while True:
             # Cria um intervalo de valores de chaves privadas para verificar em paralelo
             keys_to_check = list(range(private_key_value, private_key_value + num_cores))
@@ -76,19 +104,32 @@ def find_private_key(num_cores):
             # Verifica as chaves privadas em paralelo
             results = pool.map(check_private_key, keys_to_check)
             
+            # Salvar o checkpoint após cada bloco verificado
+            try:
+                with open(CHECKPOINT_FILE, 'w') as f:
+                    f.write(str(format(private_key_value, 'x').zfill(64)))
+                checkpoint_counter += 1
+            except Exception as e:
+                logging.error(f"Failed to save checkpoint: {str(e)}")
+            
             # Verifica se alguma chave privada corresponde ao endereço
             for result in results:
                 if result:
                     elapsed_time = time.time() - start_time
-                    print(f"Chave privada correspondente encontrada: {result}")
-                    print(f"Tempo total decorrido: {elapsed_time:.2f} segundos")
+                    logging.info(f"Matching private key found: {result}")
+                    logging.info(f"Total elapsed time: {elapsed_time:.2f} seconds")
+
+                    # Calcular a próxima chave privada a verificar
+                    next_start_value = format(private_key_value, 'x').zfill(64)  # Formato hexadecimal completo
+                    logging.info(f"Next search will start from private key: {next_start_value}")
                     pool.terminate()
                     return result
 
-            # Log do progresso
-            if private_key_value % (100000 * num_cores) == 0:
+            # Log do progresso a cada 10000 checkpoints salvos
+            if checkpoint_counter == 10000:
                 elapsed_time = time.time() - start_time
-                print(f"Tentativa de chave privada até {private_key_value}, Tempo decorrido: {elapsed_time:.2f} segundos")
+                logging.info(f"Private key attempt until {format(private_key_value, 'x').zfill(64)}, Elapsed time: {elapsed_time:.2f} seconds")
+                checkpoint_counter = 0  # Reinicia o contador
 
 if __name__ == "__main__":
     # Número de núcleos de CPU a serem utilizados (defina isso conforme necessário)
@@ -98,4 +139,4 @@ if __name__ == "__main__":
     try:
         find_private_key(num_cores)
     except Exception as e:
-        print(f"Erro durante a execução do script: {str(e)}")
+        logging.error(f"Error during script execution: {str(e)}")
