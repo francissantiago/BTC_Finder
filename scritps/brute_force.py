@@ -5,7 +5,7 @@ import hashlib
 import base58
 import time
 import logging
-import signal  # Importar o módulo signal para lidar com sinais
+import signal
 from multiprocessing import Pool, cpu_count
 
 # Configuração de logging com codificação UTF-8
@@ -20,10 +20,14 @@ def setup_logging(log_file):
     )
 
 # Definir o endereço Bitcoin fornecido
-BITCOIN_ADDRESS = "1HduPEXZRdG26SUT5Yk83mLkPyjnZuJ7Bm"
+BITCOIN_ADDRESS = "1GnNTmTVLZiqQfLbAdp9DVdicEnB5GoERE"
 VERSION = "1.0.0.0"
 THREADS = 1
 CHECKPOINT_FILE = "checkpoint.txt"
+
+# Intervalo mínimo e máximo em hexadecimal (20 a 3f)
+MIN_PK_INTERVAL = 0x20000
+MAX_PK_INTERVAL = 0x3ffff
 
 # Função para gerar a chave pública em formato compactado
 def get_public_key_bytes(private_key_bytes):
@@ -81,7 +85,7 @@ def find_private_key(num_cores):
     setup_logging(log_file="brute_force.log")
     
     # Verificar se há um checkpoint anterior
-    start_value = 1
+    start_value = MIN_PK_INTERVAL
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, 'r') as f:
             try:
@@ -99,9 +103,9 @@ def find_private_key(num_cores):
     with Pool(processes=num_cores) as pool:
         private_key_value = start_value
         try:
-            while True:
+            while private_key_value <= MAX_PK_INTERVAL:
                 # Cria um intervalo de valores de chaves privadas para verificar em paralelo
-                keys_to_check = list(range(private_key_value, private_key_value + num_cores))
+                keys_to_check = list(range(private_key_value, min(private_key_value + num_cores, MAX_PK_INTERVAL + 1)))
                 private_key_value += num_cores
 
                 # Verifica as chaves privadas em paralelo
