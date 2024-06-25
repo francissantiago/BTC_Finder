@@ -10,7 +10,7 @@ from multiprocessing import Pool, cpu_count
 
 # CONFIGURAÇÕES
 BITCOIN_ADDRESS = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb"
-VERSION = "1.0.0.0"
+VERSION = "1.0.0.4"
 THREADS = 1
 MIN_PK_INTERVAL = 0x02
 MAX_PK_INTERVAL = 0x03
