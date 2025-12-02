@@ -12,3 +12,8 @@ def get_balance(address):
     except Exception as e:
         logging.error(f"Error fetching balance: {str(e)}")
         return None
+"""REMOVED: This Python helper was removed during migration to Go.
+
+Original file archived in repository history. Use the Go `pkg/api` client
+implementation for balance checks instead.
+"""
