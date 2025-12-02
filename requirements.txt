@@ -1,4 +1,0 @@
-ecdsa
-base58
-logging 
-requests

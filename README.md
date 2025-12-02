@@ -12,6 +12,8 @@ go build ./...
 ```
 
 Aviso: este projeto mexe com chaves privadas de Bitcoin — não utilize em endereços que não são de sua propriedade. Use apenas para fins educativos e com endereços sob seu controle.
+
+Nota: o código legado em Python foi removido neste branch. A implementação atual é em Go; os scripts Python e dependências foram excluídos.
 # Brute Force Bitcoin Private Key Finder
 
 ## Requisitos
