@@ -4,9 +4,17 @@ import "log"
 
 // For now, simple wrapper around the standard log package. Can be replaced with zap/logrus.
 func Info(format string, v ...interface{}) {
-    log.Printf("INFO: "+format, v...)
+	log.Printf("INFO: "+format, v...)
 }
 
 func Error(format string, v ...interface{}) {
-    log.Printf("ERROR: "+format, v...)
+	log.Printf("ERROR: "+format, v...)
+}
+
+func Warn(format string, v ...interface{}) {
+	log.Printf("WARN: "+format, v...)
+}
+
+func Debug(format string, v ...interface{}) {
+	log.Printf("DEBUG: "+format, v...)
 }

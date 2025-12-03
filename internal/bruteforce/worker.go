@@ -4,7 +4,6 @@ import (
     "context"
     "encoding/hex"
     "math/big"
-    "time"
 
     "github.com/francissantiago/btc_finder/internal/keys"
     "github.com/francissantiago/btc_finder/internal/logging"
@@ -41,10 +40,9 @@ func (r *Runner) worker(ctx context.Context, jobs <-chan *big.Int, results chan<
             r.mu.Unlock()
 
             // increment tested count
-            // (we keep a simple counter; for large ranges this may overflow int64)
-            // Use atomic to increment
-            // Note: could be improved to count batches
-            _ = time.Now()
+            r.mu.Lock()
+            r.testedCount++
+            r.mu.Unlock()
 
             if addr == r.targetAddress {
                 // return hex private key
