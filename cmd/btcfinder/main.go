@@ -18,6 +18,28 @@ import (
 	"github.com/francissantiago/btc_finder/internal/storage"
 )
 
+func integerSqrt(n *big.Int) *big.Int {
+	if n.Sign() <= 0 {
+		return big.NewInt(0)
+	}
+	low := big.NewInt(1)
+	high := new(big.Int).Set(n)
+	for low.Cmp(high) <= 0 {
+		mid := new(big.Int).Add(low, high)
+		mid.Div(mid, big.NewInt(2))
+		sq := new(big.Int).Mul(mid, mid)
+		cmp := sq.Cmp(n)
+		if cmp == 0 {
+			return mid
+		} else if cmp > 0 {
+			high = new(big.Int).Sub(mid, big.NewInt(1))
+		} else {
+			low = new(big.Int).Add(mid, big.NewInt(1))
+		}
+	}
+	return high
+}
+
 func main() {
 	var (
 		mode = flag.String("mode", "local", "execution mode: local, node, or seed")
@@ -35,7 +57,6 @@ func main() {
 		// Node mode flags
 		nodePort  = flag.String("port", ":8080", "node server port")
 		numSeeds  = flag.Int("num-seeds", 4, "expected number of seeds")
-		jobSize   = flag.Int("job-size", 0, "job size in number of keys (0 = divide by num-seeds)")
 		nodeToken = flag.String("node-token", "secret-token", "node authentication token")
 		dbPath    = flag.String("db", "btc_finder.db", "database path for node")
 
@@ -73,7 +94,7 @@ func main() {
 		if *seedID == "" {
 			*seedID = fmt.Sprintf("node-%d", time.Now().Unix())
 		}
-		runNodeMode(ctx, *nodePort, *nodeToken, *numSeeds, *jobSize, *minHex, *maxHex, *address, *dbPath, *telegramBotToken, *telegramChatID)
+		runNodeMode(ctx, *nodePort, *nodeToken, *numSeeds, *minHex, *maxHex, *address, *dbPath, *telegramBotToken, *telegramChatID)
 
 	case "seed":
 		if *seedID == "" {
@@ -109,47 +130,48 @@ func runLocalMode(ctx context.Context, workers int, minHex, maxHex, checkpointFi
 }
 
 // runNodeMode runs the node server mode
-func runNodeMode(ctx context.Context, port, token string, numSeeds, jobSize int, minHex, maxHex, targetAddress, dbPath, telegramBotToken, telegramChatID string) {
+func runNodeMode(ctx context.Context, port, token string, numSeeds int, minHex, maxHex, targetAddress, dbPath, telegramBotToken, telegramChatID string) {
 	logging.Info("Running in NODE mode")
 	logging.Info("Port: %s, Expected seeds: %d", port, numSeeds)
 	logging.Info("Range: %s - %s", minHex, maxHex)
 
-	// Calculate number of jobs
-	numJobs := numSeeds
-	if jobSize > 0 {
-		// Calculate based on job size
-		minVal := new(big.Int)
-		maxVal := new(big.Int)
-		if _, ok := minVal.SetString(minHex, 0); !ok {
-			logging.Error("invalid minHex: %s", minHex)
-			os.Exit(1)
-		}
-		if _, ok := maxVal.SetString(maxHex, 0); !ok {
-			logging.Error("invalid maxHex: %s", maxHex)
-			os.Exit(1)
-		}
-		totalKeys := new(big.Int).Sub(maxVal, minVal)
-		totalKeys.Add(totalKeys, big.NewInt(1)) // inclusive
-		numJobsBig := new(big.Int).Div(totalKeys, big.NewInt(int64(jobSize)))
-		if numJobsBig.Cmp(big.NewInt(0)) == 0 {
-			numJobs = 1
-		} else {
-			// Check if numJobsBig fits in int
-			maxInt := big.NewInt(int64(^uint(0) >> 1))
-			if numJobsBig.Cmp(maxInt) > 0 {
-				logging.Error("Too many jobs calculated (%s), range too large", numJobsBig.String())
-				os.Exit(1)
-			}
-			numJobs = int(numJobsBig.Int64())
-			// Limit maximum jobs to prevent memory issues
-			const maxJobs = 100
-			if numJobs > maxJobs {
-				logging.Warn("Calculated jobs (%d) exceeds maximum (%d), limiting to %d", numJobs, maxJobs, maxJobs)
-				numJobs = maxJobs
-			}
-		}
-		logging.Info("Job size: %d keys, Total jobs: %d", jobSize, numJobs)
+	// Calculate number of jobs dynamically based on square root
+	minVal := new(big.Int)
+	maxVal := new(big.Int)
+	if _, ok := minVal.SetString(minHex, 0); !ok {
+		logging.Error("invalid minHex: %s", minHex)
+		os.Exit(1)
 	}
+	if _, ok := maxVal.SetString(maxHex, 0); !ok {
+		logging.Error("invalid maxHex: %s", maxHex)
+		os.Exit(1)
+	}
+	totalKeys := new(big.Int).Sub(maxVal, minVal)
+	totalKeys.Add(totalKeys, big.NewInt(1)) // inclusive
+
+	if totalKeys.Cmp(big.NewInt(0)) <= 0 {
+		logging.Error("invalid range: min >= max")
+		os.Exit(1)
+	}
+
+	jobSizeBig := integerSqrt(totalKeys)
+	if jobSizeBig.Cmp(big.NewInt(0)) == 0 {
+		jobSizeBig = big.NewInt(1)
+	}
+
+	// Ceiling division: numJobs = (totalKeys + jobSize - 1) / jobSize
+	numJobsBig := new(big.Int).Add(totalKeys, new(big.Int).Sub(jobSizeBig, big.NewInt(1)))
+	numJobsBig.Div(numJobsBig, jobSizeBig)
+
+	numJobs := int(numJobsBig.Int64())
+	const maxJobs = 100
+	if numJobs > maxJobs {
+		numJobs = maxJobs
+		jobSizeBig = new(big.Int).Add(totalKeys, big.NewInt(maxJobs-1))
+		jobSizeBig.Div(jobSizeBig, big.NewInt(maxJobs))
+	}
+
+	logging.Info("Job size: %s keys, Total jobs: %d", jobSizeBig.String(), numJobs)
 
 	// Initialize database
 	store, err := storage.NewSQLiteStorage(dbPath)
