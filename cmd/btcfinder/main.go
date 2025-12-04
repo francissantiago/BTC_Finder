@@ -57,6 +57,7 @@ func main() {
 		// Node mode flags
 		nodePort  = flag.String("port", ":8080", "node server port")
 		numSeeds  = flag.Int("num-seeds", 4, "expected number of seeds")
+		maxJobs   = flag.Int("max-jobs", 100, "maximum number of jobs to create")
 		nodeToken = flag.String("node-token", "secret-token", "node authentication token")
 		dbPath    = flag.String("db", "btc_finder.db", "database path for node")
 
@@ -94,7 +95,7 @@ func main() {
 		if *seedID == "" {
 			*seedID = fmt.Sprintf("node-%d", time.Now().Unix())
 		}
-		runNodeMode(ctx, *nodePort, *nodeToken, *numSeeds, *minHex, *maxHex, *address, *dbPath, *telegramBotToken, *telegramChatID)
+		runNodeMode(ctx, *nodePort, *nodeToken, *numSeeds, *maxJobs, *minHex, *maxHex, *address, *dbPath, *telegramBotToken, *telegramChatID)
 
 	case "seed":
 		if *seedID == "" {
@@ -130,7 +131,7 @@ func runLocalMode(ctx context.Context, workers int, minHex, maxHex, checkpointFi
 }
 
 // runNodeMode runs the node server mode
-func runNodeMode(ctx context.Context, port, token string, numSeeds int, minHex, maxHex, targetAddress, dbPath, telegramBotToken, telegramChatID string) {
+func runNodeMode(ctx context.Context, port, token string, numSeeds, maxJobs int, minHex, maxHex, targetAddress, dbPath, telegramBotToken, telegramChatID string) {
 	logging.Info("Running in NODE mode")
 	logging.Info("Port: %s, Expected seeds: %d", port, numSeeds)
 	logging.Info("Range: %s - %s", minHex, maxHex)
@@ -164,11 +165,10 @@ func runNodeMode(ctx context.Context, port, token string, numSeeds int, minHex, 
 	numJobsBig.Div(numJobsBig, jobSizeBig)
 
 	numJobs := int(numJobsBig.Int64())
-	const maxJobs = 100
 	if numJobs > maxJobs {
 		numJobs = maxJobs
-		jobSizeBig = new(big.Int).Add(totalKeys, big.NewInt(maxJobs-1))
-		jobSizeBig.Div(jobSizeBig, big.NewInt(maxJobs))
+		jobSizeBig = new(big.Int).Add(totalKeys, big.NewInt(int64(maxJobs-1)))
+		jobSizeBig.Div(jobSizeBig, big.NewInt(int64(maxJobs)))
 	}
 
 	logging.Info("Job size: %s keys, Total jobs: %d", jobSizeBig.String(), numJobs)
