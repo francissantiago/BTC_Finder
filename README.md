@@ -9,6 +9,7 @@ Instruções rápidas:
 
 ```bash
 go build ./...
+go build ./cmd/btcfinder
 ```
 
 Aviso: este projeto mexe com chaves privadas de Bitcoin — não utilize em endereços que não são de sua propriedade. Use apenas para fins educativos e com endereços sob seu controle.
